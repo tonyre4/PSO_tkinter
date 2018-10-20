@@ -55,10 +55,25 @@ class Simulation:
 
     def updateParticles(self):
         self.Es = self.generateEs()
-        self.storeVtXt() #for animation
+	print "------------------"
+	print self.bckpt
+	print "chanclas1"
+	print self.bckptp1
+	print "------------------////"
+	self.bckpt = self.bckptp1[:]	
+	print "------------------"
+	print self.bckpt
+	print "chanclas2"
+	print self.bckptp1
+	print "------------------////"
         self.calVs()
 	self.calXs()
-        self.storeVtp1Xtp1() #for animation
+        self.bckptp1 = self.storeVtXt() #for animation
+	print "------------------"
+	print self.bckpt
+	print "chanclas3"
+	print self.bckptp1
+	print "------------------////"
 
         self.animate()
 
@@ -71,54 +86,53 @@ class Simulation:
 
     def animate(self):
         z = []
-        print "backup"
-        print self.bckpt
-        for i,bb in enumerate(zip(self.bckpt,self.bckptp1)):
-            print bb
+        for i,bb in enumerate(zip(self.bckpt[:],self.bckptp1[:])):
+            #print bb
             b = bb[0]
             b2 = bb[1]
             x = b[0]
             xp1 = b2[0]
             temp = []
-            temp.append(math.sqrt((x[0]-xp1[0])**2))
-            #temp.append(math.sqrt((x[0]-xp1[0])**2 + (x[1]-xp1[1])**2))
+            temp.append(math.sqrt( ( (xp1[0]-x[0]) **2) + ( (xp1[1]-x[1]) **2) ) )
+            #temp.append(math.sqrt((xp1[0]-x[0])**2 + (xp1[1]-x[1])**2))
             temp.append(i)
+
             z.append(temp)
         print "Zeta:"
         print z
-        sorted(z, key =  lambda zetha : z[1])
+        sorted(z)
         print "Sorted"
         print z
 
 
     def resetVX(self):
-        for p in self.particles:
-            p.v = self.bckptp1[0]
-            p.x = self.bckptp1[1]
+        for p,b in zip(self.particles,self.bckptp1[:]):
+            p.v = b[0]
+            p.x = b[1]
 
     def storeVtXt(self):
-        self.bckpt = []
+        data = []
         for p in self.particles:
-            self.bckpt.append([p.v , p.x])
-
-    def storeVtp1Xtp1(self):
-        self.bckptp1 = []
-        for p in self.particles:
-            self.bckptp1.append([p.v , p.x])
+            data.append([p.v , p.x])
+	return data
 
 
     def calXs(self):
         for p in self.particles:
             i = 0
-            p.x[i] = p.v[i] + p.x[i]
+	    #print "xi:"
+	    #print p.x[i]
+            p.x[i] += p.v[i] 
+	    #print "xf:"
+	    #print p.x[i]
             i = 1
-            p.x[i] = p.v[i] + p.x[i]
+            p.x[i] += p.v[i] 
 
     def calVs(self):
         for p in self.particles:
             i = 0
-            print "La vel es:"
-            print p.v
+            #print "La vel es:"
+            #print p.v
             p.v[i] = p.v[i] + (self.alpha*self.Es[0]*(self.Goal[i]-p.x[i])) + (self.beta*self.Es[1]*(self.bestPPos[i]-p.x[i]))
             i = 1
             p.v[i] = p.v[i] + (self.alpha*self.Es[0]*(self.Goal[i]-p.x[i])) + (self.beta*self.Es[1]*(self.bestPPos[i]-p.x[i]))
