@@ -11,7 +11,7 @@ import math
 
 global canvas
 
-particles = 10
+particles = 2
 fps = 1
 timing = 1000/fps
 anchotk = 500
@@ -36,8 +36,12 @@ class Simulation:
         self.beta = 0.5
 	self.np = np #number of particles
         self.restrictedRespawnAreas = [[300,300,anchotk,altotk]] 
-        self.bckpt = []
-        self.bckptp1 = []
+	self.animate = False
+	
+	if self.animate:
+	    self.bckpt = []
+	    self.bckptp1 = []
+	
 
         #Class variables
 	self.particles = []
@@ -45,7 +49,7 @@ class Simulation:
 	    self.particles.append(Particle(self.generatePos()))
         
         self.Es = self.generateEs()
-        self.bestPPos = self.calBestPPos()
+        self.bestPPos = self.calBestParticlePos()
         
         
         #Print constant canvas objects
@@ -55,32 +59,20 @@ class Simulation:
 
     def updateParticles(self):
         self.Es = self.generateEs()
-	print "------------------"
-	print self.bckpt
-	print "chanclas1"
-	print self.bckptp1
-	print "------------------////"
-	self.bckpt = self.bckptp1[:]	
-	print "------------------"
-	print self.bckpt
-	print "chanclas2"
-	print self.bckptp1
-	print "------------------////"
+
+	if self.animate:
+	    self.bckpt = self.bckptp1[:] #For animation, shift future register to present register	
         self.calVs()
 	self.calXs()
-        self.bckptp1 = self.storeVtXt() #for animation
-	print "------------------"
-	print self.bckpt
-	print "chanclas3"
-	print self.bckptp1
-	print "------------------////"
 
-        self.animate()
+	if self.animate:
+	    self.bckptp1 = self.storeVtXt() #for animation
+	    self.animate()
+	    self.resetVX() #Reset real values
 
-        self.resetVX() #Reset real values
         for p in self.particles: #print real movements
 	   p.move_active()
-        self.bestPPos = self.calBestPPos()
+        self.bestPPos = self.calBestParticlePos()
 	tk.after(timing, self.updateParticles) 
 
 
@@ -107,37 +99,32 @@ class Simulation:
 
     def resetVX(self):
         for p,b in zip(self.particles,self.bckptp1[:]):
-            p.v = b[0]
-            p.x = b[1]
+            p.setV(b[0])
+            p.setX(b[1])
 
     def storeVtXt(self):
         data = []
         for p in self.particles:
-            data.append([p.v , p.x])
+            data.append([p.getV() , p.getX()])
 	return data
 
 
     def calXs(self):
         for p in self.particles:
+	    x = p.getX()
+	    v = p.getV()
             i = 0
-	    #print "xi:"
-	    #print p.x[i]
-            p.x[i] += p.v[i] 
-	    #print "xf:"
-	    #print p.x[i]
+            x[i] += v[i] 
             i = 1
-            p.x[i] += p.v[i] 
+            x[i] += v[i]
+	    p.setX(x)
 
     def calVs(self):
         for p in self.particles:
-            i = 0
-            #print "La vel es:"
-            #print p.v
-            p.v[i] = p.v[i] + (self.alpha*self.Es[0]*(self.Goal[i]-p.x[i])) + (self.beta*self.Es[1]*(self.bestPPos[i]-p.x[i]))
-            i = 1
-            p.v[i] = p.v[i] + (self.alpha*self.Es[0]*(self.Goal[i]-p.x[i])) + (self.beta*self.Es[1]*(self.bestPPos[i]-p.x[i]))
+	    v = p.getV() 
+            p.setV([v[0] + (self.alpha*self.Es[0]*(self.Goal[0]-p.x[0])) + (self.beta*self.Es[1]*(self.bestPPos[0]-p.x[0])) , v[1] + (self.alpha*self.Es[0]*(self.Goal[1]-p.x[1])) + (self.beta*self.Es[1]*(self.bestPPos[1]-p.x[1]))])
 
-    def calBestPPos(self):
+    def calBestParticlePos(self):
         minZ = 4000.0
         bestX = []
         for p in self.particles:
@@ -178,7 +165,7 @@ class Simulation:
                 break;
 
         #print "x fue generada"
-	return x
+	return x[:]
 
     def pointIsInArea(self,x,area):
         if x[0]>area[0] and x[1]>area[1] and x[0]<area[2] and x[1]<area[3]:
@@ -204,32 +191,19 @@ class Particle:
 	self.shape = canvas.create_oval(self.x[0]-halfparti, self.x[1]-halfparti, self.x[0]+halfparti, self.x[1]+halfparti, fill=color) #Dibuja el ovalo
         self.arr = canvas.create_line(self.x[0], self.x[1], self.x[0]+self.v[0], self.x[1]+self.v[1], arrow=LAST, fill = "red", arrowshape = (4,5,2))
 
-        #pos = canvas.coords(self.shape) #Lee coordenadas del ovalo
-	#self.x = [self.x[i]+self.v[i] for i in range(len(self.x))]
 
-	#if pos[0] < 0 and self.v[0]<0: 
-        #    self.v[0] *= -1
-	#elif pos[2] > anchotk and self.v[0]>0: 
-        #    self.v[0] *= -1
-	#if pos[1] < 0 and self.v[1]<0: 
-        #    self.v[1] *= -1
-	#elif pos[3] > altotk  and self.v[1]>0: 
-        #    self.v[1] *= -1
 
-	#self.randvels()
+    def getX(self):
+	return self.x[:]
 
-    def randvels(self): #para generar vels random
-	z = self.v
-	self.v = []
-	if z[0]>0:
-	    self.v.append(random.randint(1,vbounds))
-	else:
-	    self.v.append(random.randint(vbounds*-1,-1))
-	if z[1]>0:
-	    self.v.append(random.randint(1,vbounds))
-	else:
-	    self.v.append(random.randint(vbounds*-1,-1))
+    def getV(self):
+	return self.v[:]
 
+    def setX(self,x):
+	self.x = x[:]
+    
+    def setV(self,v):
+	self.v = v[:]
 
     def move_active(self):
         if self.active:
