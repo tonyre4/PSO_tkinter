@@ -17,6 +17,7 @@ args = sys.argv
 particles = 3
 fps = 60
 timing = 1000/fps
+slowness = 10
 anchotk = 500
 altotk = 500
 partiSize = 8 #Tiene que ser un numero par
@@ -94,15 +95,15 @@ class Simulation:
             self.obstacles.append(canvas.create_rectangle(obs[0], obs[1], obs[2], obs[3], fill = 'orange'))
 
     def updateParticles(self):
-        #self.Es = self.generateEs()
+        self.Es = self.generateEs()
 
 	if self.animate:
-	    self.Vt = self.Vt1[:] #For animation, shift future register to present register	
+	    #self.Vt = self.Vt1[:] #For animation, shift future register to present register	
             self.Xt = self.Xt1[:]
         
         if not self.animating:
             self.calVs()
-	    self.calXs()
+	#   self.calXs()
             self.animation()
 
 	    if self.animate:
@@ -111,8 +112,8 @@ class Simulation:
         if self.animating:
             self.animationfps()
 	
-        if self.animate and not self.animation:
-            self.resetVX() #Reset real values
+        #if self.animate and not self.animation:
+        #    self.resetVX() #Reset real values
 
         for p in self.particles: #print real movements
 	   p.move_active(self.Goal)
@@ -122,7 +123,7 @@ class Simulation:
 	    if self.pointIsInArea(p.getX(),self.areaGoal):
 		p.active = False
         
-	tk.after(timing, self.updateParticles) 
+	tk.after(timing*slowness, self.updateParticles) 
     
 
     def animation(self): #This function is not finished
@@ -149,7 +150,8 @@ class Simulation:
         for j,x in enumerate(self.xtemp):
             print "X[",j,"]: ", x
         for p,x in zip(self.particles,self.xtemp):
-            p.setX(x)
+            if self.pointIsInArea(x,[0,0,anchotk,altotk]): #If is inside of the frame, it will 
+		p.setX(x)
         self.fps += 1
         return
 
