@@ -1,3 +1,5 @@
+from Tkinter import Canvas
+
 try:
     # for Python2
     from Tkinter import *    
@@ -7,6 +9,7 @@ except ImportError:
 
 import sys
 import random
+import ParticlesClass
 import time
 import math
 
@@ -23,70 +26,80 @@ altotk = 500
 partiSize = 8 #Size of paritcle #should be pair number
 halfparti = partiSize/2
 tk = Tk() #tk object
-canvas = Canvas(tk, width=anchotk, height=altotk, bg="white") #Canvas object
-canvas.pack() 
-color = 'gray'
+tk.title("Particulas")
+canvas = Canvas(tk, width=anchotk*2, height=altotk, bg="white")  # type: Canvas #Canvas object
+ParticlesClass.canvas = canvas
+ParticlesClass.halfparti = halfparti
+canvas.pack()
+
+debug = True
 
 
 class Simulation:
     
     def __init__(self, np):
         ##########
-	#Constants
-	#Environment constants
+        #Constants
+        #Environment constants
         self.Goal= [400,400] #Goal coords
         self.sizeGoal = 40 #Size of the goal point
         self.halfsizeBP = self.sizeGoal/2 #half size of the goal point
-	self.areaGoal = [self.Goal[0]-self.halfsizeBP, self.Goal[1]-self.halfsizeBP, self.Goal[0]+self.halfsizeBP, self.Goal[1]+self.halfsizeBP] #Area goal
-	self.np = np #number of particles
+        self.areaGoal = [self.Goal[0]-self.halfsizeBP, self.Goal[1]-self.halfsizeBP, self.Goal[0]+self.halfsizeBP, self.Goal[1]+self.halfsizeBP] #Area goal
+        self.np = np #number of particles
         self.avoidRespawnAreas = False #For avoiding some areas to respawn
         
-	#PSO constants
-	self.alpha = 0.2 #learning coef
+        #PSO constants
+        self.alpha = 0.2 #learning coef
         self.beta = 0.2 #learning coef
         
-	#Graphics constants
-	self.restrictedRespawnAreas = [[300,300,anchotk,altotk]] #All restricted areas to respawn (this can be taken out)
+        #Graphics constants
+        self.restrictedRespawnAreas = [[300,300,anchotk,altotk]] #All restricted areas to respawn (this can be taken out)
         self.obstaclesCoords = [] #where areas coords of all obstacles will be stored
         self.obstacles = [] #where obstacle objects will be stored
        
-	#Animation constants
-	self.animate = True #if true animation will be created
-	
-	##########
-	#Variables
-	#Environment variables
-	self.particles = [] #where particle objects will be stored
-	self.BPP = [] #where Best Particle Position will be stored  <- g*
+        #Animation constants
+        self.animate = True #if true animation will be created
 
-	#PSO variables
-	self.E = self.generateEs()
-	self.calculateBPP = True
+        ##########
+        #Variables
+        #Environment variables
+        self.particles = [] #where particle objects will be stored
+        self.BPP = [] #where Best Particle Position will be stored  <- g*
 
-	#Animation variables
-	if self.animate:
-	    self.frame = 0 #counting frames
-	    self.Vparts = [] #to store parts of velocities
+        #PSO variables
+        self.E = self.generateEs()
+        self.calculateBPP = True
 
-	##########################
-	#Initial methods execution
-	self.readObstacles() #function that reads obstacles file
+        #Animation variables
+        if self.animate:
+            self.frame = 0 #counting frames
+            self.Vparts = [] #to store parts of velocities
+
+        ##########################
+        #Initial methods execution
+        self.readObstacles() #function that reads obstacles file
         self.printObstacles() #This function will print obstacles once
-	self.printGoal() #This print area goal
-	self.generateParticles()# Generates all particles
-	self.calcBestGlobal() #Calculating initial g*
-	self.setBinds()
+        self.printGoal() #This print area goal
+        self.generateParticles()# Generates all particles
+        self.calcBestGlobal() #Calculating initial g*
+        self.setBinds()
 
-	#Loop execution
-	self.loop()
+        self.velMap()
+        self.drawVRepr()
+        self.printRightLine()
+        self.printBounds()
+        #exit()
 
-    #######################################################
-    #Calculation constant methods (they only will run once)
+        #Loop execution
+        self.loop()
+
+        #######################################################
+        #Calculation constant methods (they only will run once)
     
     #It generate all particles and store them
     def generateParticles(self):
-	for i in range(0,self.np): #respawn particles
-	    self.particles.append(Particle(self.generatePos(),i,self.Goal))
+        for i in range(0,self.np): #respawn particles
+            self.particles.append(ParticlesClass.Particle(self.generatePos(),i,self.Goal))
     
     #reads .coords from input
     def readObstacles(self):
@@ -103,48 +116,176 @@ class Simulation:
     #Generate a Position avoiding obstacles
     def generatePos(self): 
         while True:
-	    x = []
-	    x.append(random.randint(0,anchotk-halfparti))
-	    x.append(random.randint(0,altotk-halfparti))
-            ex = False
+            x = []
+            x.append(random.randint(0,anchotk-halfparti))
+            x.append(random.randint(0,altotk-halfparti))
             #avoiding retricted areas
             #Here can be added restricted areas and obstacles
             #for area in self.restrictedRespawnAreas:
             for area in self.obstaclesCoords:
                 if self.pointIsInArea(x,area):
                     break
-	    else:
-		break
-	return x[:]
-
-    
+            else:
+                break
+        return x[:]
 
     ###############################################
     #Graphics constant methods (they only run once)
+    def printRightLine(self):
+        RL = canvas.create_line(anchotk,0,anchotk,altotk)
+        return
+
+    def printBounds(self):
+        for y in range(0,altotk,100):
+            x = y
+            canvas.create_line(anchotk, y+50, anchotk*2, y+50, width=1, fill="red")
+            canvas.create_line(anchotk, y, anchotk*2, y, width=1, fill="gray")
+            canvas.create_line(anchotk+x+50, 0, anchotk+x+50, altotk, width=1, fill= "red")
+            canvas.create_line(anchotk+x, 0, anchotk+x, altotk, width=1, fill="gray")
+            canvas.create_text(anchotk+10, y+10, text=str(y), fill="gray")
+            canvas.create_text(anchotk+10+x, 10, text=str(x), fill="gray")
+
+
     def printObstacles(self):
         for obs in self.obstaclesCoords:
             self.obstacles.append(canvas.create_rectangle(obs[0], obs[1], obs[2], obs[3], fill = 'orange'))
     
     def printGoal(self): #Draws the goal region
-	ag = self.areaGoal
-	self.region = canvas.create_oval(ag[0], ag[1], ag[2], ag[3], fill="green") 
-    
+        ag = self.areaGoal
+        self.region = canvas.create_oval(ag[0], ag[1], ag[2], ag[3], fill="green")
+
+    def drawVRepr(self):
+        for y in range(altotk):
+            for x in range(anchotk):
+                print self.vMap[y][x][1]
+                if self.vMap[y][x][1] == -1.0:
+                    cl = "black"
+                elif self.vMap[y][x][1] > 0 and self.vMap[y][x][0] == 0:
+                    cl = "red"
+                elif self.vMap[y][x][0] == 90:
+                    cl = "green"
+                elif self.vMap[y][x][0] == 180:
+                    cl = "cyan"
+                elif self.vMap[y][x][0] == -90:
+                    cl = "purple"
+                else:
+                    cl = "white"
+
+                canvas.create_line(x+anchotk, y, x+1+anchotk, y, width=0, fill=cl)
+
+    def velMap(self):
+        #making velocities mapping
+        ###############angle,magnitude
+        self.vMap = [[[    0,      0.0]for k in range(anchotk)] for l in range(altotk)]
+
+        #size of the kernel
+        self.kernel = 5
+        k = self.kernel
+        #How much kernels will build
+        self.layers = 2
+        l = self.layers
+
+        #modifiying it through obstacles
+        #using horizontal axis as reference (to right)
+        for o in self.obstaclesCoords:
+            #for each left line of obstacles
+            ang = -90 #down direction
+            #it also include the next layers times the kernel until down
+            for y in range(o[1],o[3]+(l*k)):
+                for la in range(l):
+                    for x in range(o[0]-((la+1)*k),o[0]-(la*k)):
+                        try:
+                            if y >= 0 and x >= 0:
+                                #a = self.vMap[y][x][0]
+                                m = self.vMap[y][x][1]
+                                self.vMap[y][x] = [ang,m+(1.0/(1+la))] #with magnitude decreasing each layer
+                        except:
+                            print "Out of bounds: " ,y ,x
+
+        #Now in up direction of right side of every obstacle
+        for o in self.obstaclesCoords:
+            #for each left line of obstacles
+            ang = 90 #up direction
+            #it also include the next layers times the kernel until up
+            for y in range(o[1]-(l*k),o[3]):
+                for la in range(l):
+                    for x in range(o[2]+(la*k),o[2]+((la+1)*k)):
+                        try:
+                            if y >= 0 and x >= 0:
+                                a = self.vMap[y][x][0]
+                                m = self.vMap[y][x][1]
+                                self.vMap[y][x] = [ang,m+(1.0/(1+la))] #with magnitude decreasing each layer
+                        except:
+                            print "Out of bounds: " , y, x
+
+
+            # # Now in right direction of bottom side of every obstacle
+            for o in self.obstaclesCoords:
+                # for each bottom line of obstacles
+                ang = 0  # right direction
+                # it also include the next layers times the kernel until up
+                for la in range(l):
+                    for y in range(o[3]+(la*k), o[3]+((la+1)*k)):
+                        for x in range(o[0] , o[2] + ((l * k))):
+                            try:
+                                if y >= 0 and x >= 0:
+                                    a = self.vMap[y][x][0]
+                                    m = self.vMap[y][x][1]
+                                    self.vMap[y][x] = [ang,
+                                                       m + (1.0 / (1 + la))]  # with magnitude decreasing each layer
+                            except:
+                                print "Out of bounds: ", y, x
+
+            # # Now in right direction of bottom side of every obstacle
+            for o in self.obstaclesCoords:
+                # for each top line of obstacles
+                ang = 180  # left direction
+                # it also include the next layers times the kernel until up
+                for la in range(l):
+                    for y in range(o[1]-((la+1)*k), o[1]-(la*k)):
+                        for x in range(o[0]-(l*k) , o[2]):
+                            try:
+                                if y >= 0 and x >= 0:
+                                    a = self.vMap[y][x][0]
+                                    m = self.vMap[y][x][1]
+                                    self.vMap[y][x] = [ang,
+                                                       m + (1.0 / (l - la))]  # with magnitude decreasing each layer
+                            except:
+                                print "Out of bounds: ", y, x
+
+        #all coords with magnitude = -1 are not allowed to reach the particle
+        for o in self.obstaclesCoords:
+            for y in range(o[1],o[3]):
+                for x in range(o[0],o[2]):
+                    self.vMap[y][x] = [0,-1.0]
+
+        if debug:
+            #printing coords in file (debug)
+            with open("vmap.txt", "w+") as f:
+                for l in self.vMap:
+                    f.write(str(l) + "\n")
+            with open("vmap1.txt", "w+") as f:
+                for y in range(60):
+                    for x in range(60):
+                        f.write(str(self.vMap[y][x]) + ",\t")
+                    f.write("\n")
+
     #################
     ##Binds for debug
     def setBinds(self):
-	canvas.bind("<Button 1>", self.clickCoords)
-	canvas.bind("<Button 2>", self.returnCoords)
-	self.points = [] #to store points
-	
+        canvas.bind("<Button 1>", self.clickCoords)
+        canvas.bind("<Button 2>", self.returnCoords)
+        self.points = [] #to store points
+
     def clickCoords(self,event):
-	self.points.append(event.x)
-	self.points.append(event.y)
-	print event.x , "," , event.y
-	
+        self.points.append(event.x)
+        self.points.append(event.y)
+        print event.x , "," , event.y
+
     def returnCoords(self,event):
-	for p in self.points:
-	    print p,",",
-	self.points = []
+        for p in self.points:
+            print p,",",
+        self.points = []
 
 
     ################
@@ -155,167 +296,131 @@ class Simulation:
         else:
             return False
 
-    def hitAObstacle(self,x):
-	for a in self.obstaclesCoords:
-	    if self.pointIsInArea(x,a):
-		return True
-	return False
+    def hitAObstacle(self, x, P):
+        for a in self.obstaclesCoords:
+            try:
+                if self.vMap[int(x[1])][int(x[0])][1] == -1.0:
+                    if debug and P:
+                        print "HIT:"
+                        print "By vMap Input: ", x
+                    return True
+            except:
+                pass
+            if self.pointIsInArea(x, a):
+                if debug and P:
+                    print "HIT:"
+                    print "Hitting obstacle coords: " , a, "Input Coords: ", x
+                return True
+        return False
 
-    def intersects(self,x,v):
-	V100 = [v[i]/100.0 for i in range(2)]
-	for j in range(100):
-	    xh = [x[i] + (j*V100[i]) for i in range(2)]
-	    if self.hitAObstacle(xh):
-		return True
-	return False
-    
+    # def intersects(self,x,v):
+    #     V100 = [v[i]/100.0 for i in range(2)]
+    #     for j in range(100):
+    #         xh = [x[i] + (j*V100[i]) for i in range(2)]
+    #         if self.hitAObstacle(xh):
+    #             return True
+    #     return False
+
+    def intersects2(self, xi, xf):
+        X100 = [(xf[i]-xi[i])/100.0 for i in range(2)]
+        for j in range(100):
+            xh = [math.floor(xi[i] + (j*X100[i])) for i in range(2)]
+            if self.hitAObstacle(xh, False):
+                if debug:
+                    print "INTERSECTS:"
+                    print "Intesection Coords: ", xh
+                return True
+        return False
+
     def calcBestGlobal(self): #Calculates g*
-	if self.calculateBPP:
-	    ps = self.particles
-	    g = self.Goal
-	    mini = self.calcModule(ps[0].getX(),g)
-	    index = 0
-	    #print index
-	    #print mini
+        if self.calculateBPP:
+            ps = self.particles
+            g = self.Goal
+            mini = self.calcModule(ps[0].getX(),g)
+            index = 0
 
-	    for i in range(1,len(ps)): #Calculates all modules
-		mz = self.calcModule(ps[i].getX(),g)
-		#print i 
-		#print mz
-		if mz<mini:
-		    mini = mz
-		    index = i
-		    if not ps[i].isActivated():
-			self.calculateBPP = False
-	    #print "Best:"
-	    #print index
-	    #print mini
-	    self.BPP = ps[index].getX() #stores best g*
-	    #print self.BPP
-	    
+            for i in range(1,len(ps)): #Calculates all modules
+                mz = self.calcModule(ps[i].getX(),g)
+                if mz<mini:
+                    mini = mz
+                    index = i
+                if not ps[i].isActivated():
+                    self.calculateBPP = False
+            self.BPP = ps[index].getX() #stores best g*
+
+
     def calcModule(self,x,y): #Calculates module from x to y
-	z = math.sqrt( (y[0]-x[0])**2 + (y[1]-x[1])**2 )
-	return z
+        z = math.sqrt( (y[0]-x[0])**2 + (y[1]-x[1])**2 )
+        return z
+
+    def calcAngle(self,x,y):
+        ang = math.tan()
+        return ang
 
     def generateEs(self): #Generates E random numbers
-        e = []
-        e.append(random.uniform(0.0,1.0))
-        e.append(random.uniform(0.0,1.0))
-        return e 
+        e = [random.uniform(0.0, 1.0), random.uniform(0.0, 1.0)]
+        return e
 
     def calcV(self,x,xa,v):
-	a = self.alpha
-	b = self.beta
-	e = self.E
-	g = self.BPP
+        a = self.alpha
+        b = self.beta
+        e = self.E
+        g = self.BPP
 
-	V = [v[i]+(a*e[0]*(g[i]-x[i]))+(b*e[1]*(xa[i]-x[i]))  for i in range(2)]
-	return V
+        V = [v[i]+(a*e[0]*(g[i]-x[i]))+(b*e[1]*(xa[i]-x[i])) for i in range(2)]
+        return V
 
-    def calcX(self,x,v):
-	return [x[i]+v[i] for i in range(2)]
+    def calcX(self, x, v):
+        return [x[i]+v[i] for i in range(2)]
+
+    def deg2rad(self,angle):
+        return ((angle*math.pi)/180)
+    
+    def rotateVector(self,angle,x):
+        theta = self.deg2rad(angle)
+        cs = math.cos(theta)
+        sn = math.sin(theta)
+        return [x[0]*cs - x[1]*sn , x[0]*sn + x[1]*cs]
 
     ############
     #Loop method
     def loop(self):
-	for p in self.particles:
-	    self.E = self.generateEs()
-	    p.setV(self.calcV(p.getX(),p.getBX(),p.getV()))#generate new velocity t+1
-	    fx = self.calcX(p.getX(),p.getV())
-	    if not self.pointIsInArea(fx,[0,0,anchotk,altotk]) or self.hitAObstacle(fx) or (self.intersects(p.getX(),p.getV())):
-		randV = [random.randint(-1,1),random.randint(-1,1)]
-		randV2 = [random.randint(-50,50),random.randint(-50,50)]
-		v = p.getV()
-		p.setV([v[i]*randV[i] + randV2[i] for i in range(2)])
-	    else:
-		p.setX(fx)#generate new positions t+1
-	    p.setArr(p.calcArrowPoint())
-	    p.calcBx()#calculate x*
-	    p.move_active()
-	    if self.pointIsInArea(p.getX(),self.areaGoal):
-		p.deactivateParticle()
-	self.calcBestGlobal()#Find current g*
+        for p in self.particles:
+            #self.E = self.generateEs()
+            p.setV(self.calcV(p.getX(),p.getBX(),p.getV()))#generate new velocity t+1
+            fx = self.calcX(p.getX(),p.getV())
+            p.setArr(fx) #Estimated new point
+            p.move_active() #draw particle again
+            #if not self.pointIsInArea(fx,[0,0,anchotk,altotk]) or self.hitAObstacle(fx) or (self.intersects(p.getX(),p.getV())):
+            if not self.pointIsInArea(fx,[0,0,altotk,anchotk]) or self.hitAObstacle(fx,False) or (self.intersects2(p.getX(),fx)):
 
-	tk.after(500, self.loop)
-	
-    
+                ##DEBUG
+                if debug:
+                    print "Particle " , p.getIndex(), ": "
+                    if not self.pointIsInArea(fx,[0,0,anchotk,altotk]):
+                        print "Out of drawing Area"
+                    if self.hitAObstacle(fx,True):
+                        print "Is hitting an obstacle. PCoords: " , p.getX() , "PVel: " , p.getV()
+                    elif self.intersects2(p.getX(),fx):
+                        print "Is intersecting an obstacle. PCoords: " , p.getX() , "PVel: " , p.getV()
+                    #raw_input();
 
-class Particle:
-    def __init__(self, x,index, goal):
-	self.x = x #Particle position
-	self.v = [random.randint(-1,1),random.randint(-1,1)] #velocity vector (first time is calculated randomly)
-	self.index = index
-	self.arrP = self.calcArrowPoint()
-	self.goal = goal #this store goal position for multiple calculations
-        self.active = True #for active movement
-	
-        #For PSO calculations
-        self.BestPos = self.x[:]  #best position at begining is the x init position
-        self.minZ = self.calcGoalModule() #minimum module is from current pos to goal
-	self.drawParticle()
-    
-    #####################
-    #calculations methods
-    def calcGoalModule(self): #Calculates module from current x to goal
-	x = self.x
-	g = self.goal
-	z = math.sqrt( (g[0]-x[0])**2 + (g[1]-x[0])**2 )
-	return z
-    def calcArrowPoint(self): #Calcultes arrow point to draw
-	x = self.x
-	v = self.v
-	arr = []
-	arr.append(x[0]+v[0])
-	arr.append(x[1]+v[1])
-	return arr[:]
-    def calcBx(self): #Calculates x*
-	mz = self.minZ
-	cGM = self.calcGoalModule()
-	if cGM < mz:
-	    self.minZ = cGM
-	    self.BestPos = self.x[:]
+                randV = [random.randint(-1,1),random.randint(-1,1)]
+                randV2 = [random.randint(-50,50),random.randint(-50,50)]
+                v = p.getV()
+                p.setV([v[i]*randV[i] + randV2[i] for i in range(2)])
 
-    ########################
-    #All get and set methods
-    def getBX(self): #to get best positon of the particle that it has touched
-        return self.BestPos[:]
-    def getX(self): #To get position vector
-	return self.x[:]
-    def getV(self): #To get Velocity vector
-	return self.v[:]
-    def setX(self,x): #To set position
-	self.x = x[:]
-    def setV(self,v): #To set Velocity
-	self.v = v[:]
-    def setArr(self,a):
-	self.arrP = a[:]
-    def isActivated(self):
-	return self.active
+            else:
+                p.setX(fx)#generate new positions t+1
+                p.setArr(p.calcArrowPoint())
+                p.calcBx()#calculate x*
+                p.move_active()
+            if self.pointIsInArea(p.getX(),self.areaGoal):
+                p.deactivateParticle()
+            self.calcBestGlobal()#Find current g*
 
-    #################
-    #Graphics methods
-    def move_active(self): #Movement 
-        if self.active: #if the particle is active
-            self.drawParticle() #The particle will be drawn
-    def deactivateParticle(self):
-	canvas.delete(self.arr) #Delete arrow drawing
-	self.active = False
-    def drawParticle(self):
-	self.calcArrowPoint()
-	x = self.x
-	a = self.arrP
-	#deleting objects from canvas
-	try:
-	    canvas.delete(self.shape) #Delete particle
-	    canvas.delete(self.arr) #Delete vector
-	    canvas.delete(self.text)
-	except:
-	    pass
-	#drawing particle and arrow
-	self.text = canvas.create_text(x[0],x[1]-15,text=str(self.index))
-	self.shape = canvas.create_oval(x[0]-halfparti, x[1]-halfparti, x[0]+halfparti, x[1]+halfparti, fill=color) #Circle particle drawing
-        self.arr = canvas.create_line(x[0], x[1], a[0], a[1], arrow=LAST, fill = "red", arrowshape = (4,5,2)) #Arrow vector drawing
-        
+        tk.after(500, self.loop)
+
 
 
 S = Simulation(particles)
