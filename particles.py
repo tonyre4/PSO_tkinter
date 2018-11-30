@@ -210,7 +210,7 @@ class Simulation:
         self.vMap = [[[    0,      0.0]for k in range(anchotk)] for l in range(altotk)]
 
         #size of the kernel
-        self.kernel = 5
+        self.kernel = 3
         k = self.kernel
         #How much kernels will build
         self.layers = 2
@@ -436,10 +436,71 @@ class Simulation:
                         print "Is intersecting an obstacle. PCoords: " , p.getX() , "PVel: " , p.getV()
                     #raw_input();
 
-                randV = [random.randint(-1,1),random.randint(-1,1)]
-                randV2 = [random.randint(-50,50),random.randint(-50,50)]
-                v = p.getV()
-                p.setV([v[i]*randV[i] + randV2[i] for i in range(2)])
+                x = p.getX()
+                try:
+                    print x
+                    ang,mag=self.vMap[int(x[1])][int(x[0])]
+                except:
+                    mag = 0
+
+                if mag==0: #if there is no magnitude, just provide a random velocity
+                    randV = [random.randint(-1,1),random.randint(-1,1)]
+                    randV2 = [random.randint(-50,50),random.randint(-50,50)]
+                    v = p.getV()
+                    p.setV([v[i]*randV[i] + randV2[i] for i in range(2)])
+                else: #if not, calculate new velocity and position
+                    #x = [x[i] for i in range(2)]
+                    ztemp = self.calcModule(x, fx)
+                    if ztemp > 200:
+                        ztemp /= -2
+                    xi = x
+                    if ang == 0:
+                        x = [x[0]+ztemp, x[1]]
+                        p.setV([ztemp, 0.0])
+                    elif ang == 90:
+                        x = [x[0], x[1]+ztemp]
+                        p.setV([0.0, ztemp])
+                    elif ang == -90:
+                        x = [x[0], x[1]-ztemp]
+                        p.setV([0.0, -ztemp])
+                    elif ang == 180:
+                        x = [x[0]-ztemp, x[1]]
+                        p.setV([-ztemp, 0.0])
+
+                    tri = 0
+                    rev = 1
+                    revx = 1
+                    onx = 0
+                    while (not self.pointIsInArea(x,[0,0,altotk,anchotk]) or self.hitAObstacle(x,False) or (self.intersects2(p.getX(),x))):
+                        if tri>100:
+                            x = xi
+                            vvv = p.getV()
+                            p.setV([-1*vvv[i] for i in range(2)])
+                            break
+                            if rev == -1:
+                                onx = 1
+                            rev *=-1
+                            tri = 0
+                            ztemp*=10
+
+                        ztemp /=2
+                        r1 = random.randint(-1,1)
+                        r2 = random.randint(0,5)
+                        noise = onx*r1*r2
+
+                        if ang == 0:
+                            x = [(xi[0]+ztemp)*rev, xi[1]+noise]
+                        elif ang == 90:
+                            x = [xi[0]+noise, rev*(x[1]+ztemp)]
+                        elif ang == -90:
+                            x = [xi[0]+noise, rev*(xi[1]-ztemp)]
+                        elif ang == 180:
+                            x = [rev*(xi[0]-ztemp), xi[1]+noise]
+                        tri+=1
+                        print "Calculating..."
+
+                    p.setX(x)
+
 
             else:
                 p.setX(fx)#generate new positions t+1
