@@ -35,6 +35,34 @@ canvas.pack()
 debug = True
 
 
+#Parse arguments
+try:
+    print args[1]
+    print type(args[1])
+    if args[1].find(".png")>-1:
+        import imProcessing
+        byFile = False
+	R,OBS = imProcessing.getObsCoordsPNG(args[1])
+	#Mapping coords
+	obss=[]
+	for o in OBS:
+	    t = []
+	    t.append(int(anchotk*o[0][0]/R[0]))
+	    t.append(int(altotk*o[0][1]/R[1]))
+	    t.append(int(anchotk*o[0][2]/R[0]))
+	    t.append(int(altotk*o[0][3]/R[1]))
+	    obss.append(t[:])
+
+    elif args[1].find(".coords")>-1:
+        fileobs = args[1]
+	byfile = True
+    else:
+	raise IndexError
+except:
+    print "Se necesita como primer argumento la entrada de los obstaculos, puede ser un archivo .coords o un archivo PNG para ser procesado."
+    exit()
+
+
 class Simulation:
     
     def __init__(self, np):
@@ -77,8 +105,11 @@ class Simulation:
 
         ##########################
         #Initial methods execution
-        self.readObstacles() #function that reads obstacles file
-        self.printObstacles() #This function will print obstacles once
+	if byFile:
+	    self.readObstacles() #function that reads obstacles file
+        else:
+            self.obstaclesCoords = obss
+	self.printObstacles() #This function will print obstacles once
         self.printGoal() #This print area goal
         self.generateParticles()# Generates all particles
         self.calcBestGlobal() #Calculating initial g*
@@ -103,7 +134,7 @@ class Simulation:
     
     #reads .coords from input
     def readObstacles(self):
-        with open(args[1],"r") as f: #Reading file
+        with open(fileobs,"r") as f: #Reading file
             for l in f:
                 l = l.replace("\n","")
                 l = l.split(",")
@@ -412,9 +443,10 @@ class Simulation:
 
             else:
                 p.setX(fx)#generate new positions t+1
-                p.setArr(p.calcArrowPoint())
-                p.calcBx()#calculate x*
-                p.move_active()
+
+            p.setArr(p.calcArrowPoint())
+            p.calcBx()#calculate x*
+            p.move_active()
             if self.pointIsInArea(p.getX(),self.areaGoal):
                 p.deactivateParticle()
             self.calcBestGlobal()#Find current g*
